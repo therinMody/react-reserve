@@ -2,6 +2,7 @@ import React from 'react'
 import axios from 'axios'
 import ProductList from '../components/Index/ProductList'
 
+//the home function
 function Home({products}) {
   return <ProductList products={products}/>;
 }
