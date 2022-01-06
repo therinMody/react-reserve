@@ -1,6 +1,8 @@
 import { initScriptLoader } from 'next/script';
 import React from 'react';
 import {Form, Input, TextArea, Button, Image, Message, Header, Icon } from 'semantic-ui-react';
+import axios from 'axios';
+import baseUrl from '../utils/baseUrl';
 
 const INITIAL_PRODUCT = {
   name:"",
@@ -13,6 +15,7 @@ function CreateProduct() {
   const [product, setProduct] = React.useState(INITIAL_PRODUCT);
   const [mediaPreview, setMediaPreview] = React.useState('');
   const [success, setSuccess] = React.useState(false);
+  const[loading, setLoading] = React.useState(false);
 
   function handleChange(event) {
     const {name, value, files} = event.target;
@@ -24,11 +27,27 @@ function CreateProduct() {
     }
   };
 
-  function handleSubmit(event) {
+  async function handleImageUpload() {
+    const data = new FormData();
+    data.append('file',product.media);
+    data.append('upload_preset', 'reactreserve');
+    data.append('cloud_name', 'dz9cfprye');
+    const response = await axios.post(process.env.CLOUDINARY_URL, data);
+    const mediaUrl = response.data.url;
+    return mediaUrl;
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
+    setLoading(true);
+    const mediaUrl = await handleImageUpload();
+    const url = `${baseUrl}/api/product`;
+    const {name, price, description } = product;
+    const payload = {name, price, description, mediaUrl};
+    const response = await axios.post(url, payload);
+    setLoading(false);
     setProduct(INITIAL_PRODUCT);
     setSuccess(true);
-    console.log(product);
   }
 
   return (
@@ -37,7 +56,7 @@ function CreateProduct() {
         <Icon name="add" color="orange"/>
         Create New Product
       </Header>
-      <Form success={success} onSubmit={handleSubmit}>
+      <Form loading={loading} success={success} onSubmit={handleSubmit}>
         <Message
           success
           icon="check"
@@ -85,6 +104,7 @@ function CreateProduct() {
         />
         <Form.Field
           control={Button}
+          disabled={loading}
           color="blue"
           icon="pencil alternate"
           content="Submit"
