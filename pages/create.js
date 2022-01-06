@@ -1,24 +1,32 @@
 import { initScriptLoader } from 'next/script';
 import React from 'react';
-import {Form, Input, TextArea, Button, Image, Message, Header, Icon } from 'semantic-ui-react';
+import { Form, Input, TextArea, Button, Image, Message, Header, Icon } from 'semantic-ui-react';
 import axios from 'axios';
 import baseUrl from '../utils/baseUrl';
+import catchErrors from '../utils/catchErrors'
 
 const INITIAL_PRODUCT = {
-  name:"",
-  price:"",
-  media:"",
-  description:""
+  name: "",
+  price: "",
+  media: "",
+  description: ""
 };
 
 function CreateProduct() {
   const [product, setProduct] = React.useState(INITIAL_PRODUCT);
   const [mediaPreview, setMediaPreview] = React.useState('');
   const [success, setSuccess] = React.useState(false);
-  const[loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [disabled, setDisabled] = React.useState(true);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    const isProduct = Object.values(product).every(el => Boolean(el));
+    isProduct ? setDisabled(false) : setDisabled(true);
+  }, [product]);
 
   function handleChange(event) {
-    const {name, value, files} = event.target;
+    const { name, value, files } = event.target;
     if (name === "media") {
       setProduct((prevState) => ({ ...prevState, media: files[0] }));
       setMediaPreview(window.URL.createObjectURL(files[0]));
@@ -29,7 +37,7 @@ function CreateProduct() {
 
   async function handleImageUpload() {
     const data = new FormData();
-    data.append('file',product.media);
+    data.append('file', product.media);
     data.append('upload_preset', 'reactreserve');
     data.append('cloud_name', 'dz9cfprye');
     const response = await axios.post(process.env.CLOUDINARY_URL, data);
@@ -38,25 +46,36 @@ function CreateProduct() {
   }
 
   async function handleSubmit(event) {
-    event.preventDefault();
-    setLoading(true);
-    const mediaUrl = await handleImageUpload();
-    const url = `${baseUrl}/api/product`;
-    const {name, price, description } = product;
-    const payload = {name, price, description, mediaUrl};
-    const response = await axios.post(url, payload);
-    setLoading(false);
-    setProduct(INITIAL_PRODUCT);
-    setSuccess(true);
+    try {
+      event.preventDefault();
+      setLoading(true);
+      const mediaUrl = await handleImageUpload();
+      const url = `${baseUrl}/api/product`;
+      const { name, price, description } = product;
+      const payload = { name, price, description, mediaUrl };
+      const response = await axios.post(url, payload);
+      setProduct(INITIAL_PRODUCT);
+      setSuccess(true);
+    } catch (error) {
+      catchErrors(error, setError);
+      console.error("Handle Submit Error in create.js", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <>
       <Header as="h2" block>
-        <Icon name="add" color="orange"/>
+        <Icon name="add" color="orange" />
         Create New Product
       </Header>
-      <Form loading={loading} success={success} onSubmit={handleSubmit}>
+      <Form loading={loading} error={Boolean(error)} success={success} onSubmit={handleSubmit}>
+        <Message
+          error
+          header="Oops!"
+          content={error}
+        />
         <Message
           success
           icon="check"
@@ -93,8 +112,8 @@ function CreateProduct() {
             onChange={handleChange}
           />
         </Form.Group>
-        <Image src={mediaPreview} rounded centered size="small"/>
-        <Form.Field 
+        <Image src={mediaPreview} rounded centered size="small" />
+        <Form.Field
           control={TextArea}
           name="description"
           label="Description"
@@ -104,14 +123,14 @@ function CreateProduct() {
         />
         <Form.Field
           control={Button}
-          disabled={loading}
+          disabled={loading || disabled}
           color="blue"
           icon="pencil alternate"
           content="Submit"
           type="submit"
         />
       </Form>
-    </> 
+    </>
   )
 }
 
